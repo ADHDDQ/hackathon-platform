@@ -1,0 +1,121 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  hackathon-platform – Docker Compose                       ║
+# ║  Run:  docker compose up --build                           ║
+# ╚══════════════════════════════════════════════════════════════╝
+#
+# Service topology:
+#
+#   ┌──────────┐     ┌──────────┐     ┌──────────────┐
+#   │ frontend │────▶│ backend  │────▶│  python-api  │
+#   │ :3000    │     │ :4000    │     │  :8000       │
+#   └──────────┘     └────┬─────┘     └──────┬───────┘
+#                         │                  │
+#                         ▼                  ▼
+#                    ┌──────────┐      ┌──────────┐
+#                    │   n8n    │      │ postgres  │
+#                    │  :5678   │──────│  :5432    │
+#                    └──────────┘      └──────────┘
+
+services:
+  # ── Postgres ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Express Backend ──────────────────────────────────────
+  backend:
+    build:
+      context: ./services/backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    environment:
+      BACKEND_PORT: 4000
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── React Frontend ───────────────────────────────────────
+  frontend:
+    build:
+      context: ./services/frontend
+      args:
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:4000}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  # ── Python FastAPI ───────────────────────────────────────
+  python-api:
+    build:
+      context: ./services/python-api
+    restart: unless-stopped
+    ports:
+      - "${PYTHON_API_PORT:-8000}:8000"
+    environment:
+      PYTHON_DATABASE_URL: ${PYTHON_DATABASE_URL}
+      PYTHON_API_PORT: 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── n8n Automation ───────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    environment:
+      # n8n Postgres configuration
+      DB_TYPE: ${DB_TYPE}
+      DB_POSTGRESDB_HOST: ${DB_POSTGRESDB_HOST}
+      DB_POSTGRESDB_PORT: ${DB_POSTGRESDB_PORT}
+      DB_POSTGRESDB_DATABASE: ${DB_POSTGRESDB_DATABASE}
+      DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER}
+      DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      WEBHOOK_URL: ${WEBHOOK_URL}
+      # Disable user management for hackathon ease-of-use
+      N8N_USER_MANAGEMENT_DISABLED: "true"
+    volumes:
+      - n8ndata:/home/node/.n8n
+      - ./n8n/workflows:/import/workflows:ro
+      - ./n8n/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+    driver: local
+  n8ndata:
+    driver: local
