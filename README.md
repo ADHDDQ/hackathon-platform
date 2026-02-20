@@ -67,12 +67,16 @@ Wait ~30s for health checks, then open:
 | http://localhost:8000/health | Python API health   |
 | http://localhost:5678        | n8n editor          |
 
-### First run — n8n owner setup
+### First run — n8n
 
-The activation script (`n8n/activate-workflows.mjs`) automatically:
+On first startup:
 
-- Creates an owner account (`admin@hackathon.local` / `Hackathon123!`)
-- Activates all imported workflows
+1. Workflows from `n8n/workflows/` are automatically imported into the database via the n8n CLI
+2. Open http://localhost:5678 — you will see a **signup page**
+3. Create your owner account (any email/password you like)
+4. After signup, the background activation script detects the new owner and **activates all workflows automatically** — webhooks go live within seconds
+
+You can verify by clicking **"Trigger n8n Workflow"** on the frontend at http://localhost:3000.
 
 ---
 
@@ -162,8 +166,8 @@ hackathon-platform/
 │   └── copilot-instructions.md
 ├── README.md
 ├── n8n/
-│   ├── entrypoint.sh
-│   ├── activate-workflows.mjs
+│   ├── entrypoint.sh             # Imports workflows via CLI, starts n8n + activation script
+│   ├── setup-workflows.mjs       # Waits for owner signup, then activates all workflows
 │   └── workflows/
 │       └── simple-automation.json
 └── services/
@@ -224,22 +228,22 @@ hackathon-platform/
 
 ## Adding an n8n Workflow
 
-1. Create or export a workflow JSON in `n8n/workflows/`
-2. Restart: `docker compose restart n8n` (or `-f docker-compose.dev.yml`)
-3. The entrypoint auto-imports and the activation script activates them
+1. Create or export a workflow JSON in `n8n/workflows/` (include `"active": true` in the JSON)
+2. Restart: `docker compose restart n8n` (or `docker compose down -v && docker compose up --build` for a clean start)
+3. The entrypoint imports via CLI; after you sign up, the activation script activates them automatically
 
 ---
 
 ## Troubleshooting
 
-| Problem                      | Fix                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------ |
-| n8n webhook returns 404      | Workflow not activated. Check `docker compose logs n8n`. Try `docker compose down -v` for fresh start. |
-| Frontend shows "Error"       | Backend may not be ready — wait 30s, refresh. Check `docker compose logs backend`.                     |
-| Port conflict                | Change host ports in `.env` and update `VITE_BACKEND_URL`.                                             |
-| DB issues                    | `docker compose down -v && docker compose up --build`                                                  |
-| Backend can't reach postgres | Ensure `pnpm dev:infra` is running and `services/backend/.env` has `localhost:5432`                    |
-| pnpm install fails           | Ensure pnpm is installed: `npm i -g pnpm`                                                              |
+| Problem                      | Fix                                                                                                                                                                                                                                     |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| n8n webhook returns 404      | Workflow not activated. Make sure you signed up at http://localhost:5678 first — the activation script runs after signup. Check `docker compose logs n8n`. Try `docker compose down -v && docker compose up --build` for a fresh start. |
+| Frontend shows "Error"       | Backend may not be ready — wait 30s, refresh. Check `docker compose logs backend`.                                                                                                                                                      |
+| Port conflict                | Change host ports in `.env` and update `VITE_BACKEND_URL`.                                                                                                                                                                              |
+| DB issues                    | `docker compose down -v && docker compose up --build`                                                                                                                                                                                   |
+| Backend can't reach postgres | Ensure `pnpm dev:infra` is running and `services/backend/.env` has `localhost:5432`                                                                                                                                                     |
+| pnpm install fails           | Ensure pnpm is installed: `npm i -g pnpm`                                                                                                                                                                                               |
 
 ---
 

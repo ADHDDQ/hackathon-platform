@@ -8,7 +8,7 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "webhook-trigger",
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
       "name": "Webhook Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
@@ -16,14 +16,14 @@
         240,
         300
       ],
-      "webhookId": "hello-webhook"
+      "webhookId": "a1b2c3d4-0002-4000-8000-000000000002"
     },
     {
       "parameters": {
         "url": "http://backend:4000/api/hello",
         "options": {}
       },
-      "id": "call-backend",
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
       "name": "Call Backend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -37,7 +37,7 @@
         "url": "http://python-api:8000/compute?n=7",
         "options": {}
       },
-      "id": "call-python",
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
       "name": "Call Python API",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
@@ -48,9 +48,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Combine responses from backend + python-api\nconst backendData = $('Call Backend').first().json;\nconst pythonData  = $('Call Python API').first().json;\n\nreturn [{\n  json: {\n    source: 'n8n-workflow',\n    backend: backendData,\n    python:  pythonData,\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const backendData = $('Call Backend').first().json;\nconst pythonData  = $('Call Python API').first().json;\nreturn [{ json: { source: 'n8n-workflow', backend: backendData, python: pythonData, timestamp: new Date().toISOString() } }];"
       },
-      "id": "combine-results",
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
       "name": "Combine Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -95,17 +95,9 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "5",
-  "tags": []
-},
-"active": true,
-"settings": {
-  "executionOrder": "v1"
-},
-"versionId": "4",
-"tags": []
+  "tags": [],
+  "active": true
 }

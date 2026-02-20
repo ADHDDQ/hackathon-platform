@@ -66,12 +66,13 @@ This is a **Docker Compose monorepo** with a **pnpm workspace** for the Node.js 
 
 ### n8n
 
-- Workflows are JSON files in `n8n/workflows/`.
-- `n8n/entrypoint.sh` imports all workflows on startup, then starts n8n, then runs the activation script.
-- `n8n/activate-workflows.mjs` auto-creates the owner account and activates all workflows via the n8n REST API.
+- Workflows are JSON files in `n8n/workflows/`. They must include `"active": true`.
+- `n8n/entrypoint.sh` imports all workflow JSON files via `n8n import:workflow` CLI on container startup, then starts n8n, then launches the activation script.
+- `n8n/setup-workflows.mjs` runs in the background — it waits for the user to create an owner account via the n8n UI (http://localhost:5678), then activates all imported workflows using the n8n CLI (`n8n update:workflow --all --active=true`). It does NOT create any accounts.
 - n8n uses Postgres as its metadata store (configured via `DB_POSTGRESDB_*` env vars).
-- Webhooks are registered only when a workflow is **active**. The activation script handles this automatically.
+- Webhooks are registered only when a workflow is **active**. The activation script handles this automatically after owner signup.
 - n8n telemetry is disabled (`N8N_DIAGNOSTICS_ENABLED: "false"`).
+- On first run, the user must sign up at http://localhost:5678 before workflows become active.
 
 ---
 
@@ -205,11 +206,12 @@ For routing, install `react-router-dom` and set up routes in `App.jsx`.
 
 ### Option A: Export from the n8n editor (recommended)
 
-1. Open http://localhost:5678 (login: `admin@hackathon.local` / `Hackathon123!`)
+1. Open http://localhost:5678 and sign up / log in
 2. Build the workflow visually
 3. Menu → Download workflow data
 4. Save the JSON to `n8n/workflows/my-workflow.json`
-5. `docker compose restart n8n` to re-import
+5. Ensure the JSON includes `"active": true` at the top level
+6. `docker compose restart n8n` to re-import
 
 ### Option B: Write JSON manually
 
@@ -225,7 +227,8 @@ Use the existing `simple-automation.json` as a template.
 ### Important n8n notes
 
 - Workflows are imported via `n8n import:workflow` CLI on container startup
-- The activation script (`activate-workflows.mjs`) activates all imported workflows
+- The activation script (`setup-workflows.mjs`) waits for the user to sign up, then activates all imported workflows via `n8n update:workflow --all --active=true`
+- No admin account is auto-created — the user must sign up on first visit to http://localhost:5678
 - For webhook-triggered workflows, the webhook URL is `http://localhost:5678/webhook/<path>`
 - Inside Docker, other services reach n8n at `http://n8n:5678/webhook/<path>`
 - n8n credentials (API keys, etc.) cannot be pre-imported via JSON — they must be created in the n8n UI or via the REST API
@@ -321,7 +324,7 @@ volumes:
 
 2. **Frontend env vars**: Must start with `VITE_` and are baked at build time. Changing them requires rebuilding the frontend image.
 
-3. **n8n webhook 404**: Means the workflow isn't activated. Check `docker compose logs n8n` for activation script errors. A fresh `docker compose down -v && docker compose up --build` usually fixes it.
+3. **n8n webhook 404**: Means the workflow isn't activated. Make sure you signed up at http://localhost:5678 first — the activation script runs after owner signup. Check `docker compose logs n8n` for activation script output. A fresh `docker compose down -v && docker compose up --build` usually fixes it.
 
 4. **docker-compose.yml `version:` key**: Do NOT add a `version: "3.x"` key — it's obsolete and triggers warnings in Compose V2.
 
