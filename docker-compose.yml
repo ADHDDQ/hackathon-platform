@@ -45,6 +45,8 @@ services:
     environment:
       BACKEND_PORT: 4000
       DATABASE_URL: ${DATABASE_URL}
+      N8N_URL: http://n8n:5678
+      PYTHON_API_URL: http://python-api:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,18 +102,17 @@ services:
       DB_POSTGRESDB_USER: ${DB_POSTGRESDB_USER}
       DB_POSTGRESDB_PASSWORD: ${DB_POSTGRESDB_PASSWORD}
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
-      WEBHOOK_URL: ${WEBHOOK_URL}
-      # Disable user management for hackathon ease-of-use
-      N8N_USER_MANAGEMENT_DISABLED: "true"
+      WEBHOOK_URL: http://localhost:5678/
+      # Disable telemetry to avoid harmless ECONNREFUSED noise in logs
+      N8N_DIAGNOSTICS_ENABLED: "false"
     volumes:
       - n8ndata:/home/node/.n8n
       - ./n8n/workflows:/import/workflows:ro
       - ./n8n/entrypoint.sh:/entrypoint.sh:ro
+      - ./n8n/activate-workflows.mjs:/scripts/activate-workflows.mjs:ro
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     depends_on:
       postgres:
-        condition: service_healthy
-      backend:
         condition: service_healthy
 
 volumes:

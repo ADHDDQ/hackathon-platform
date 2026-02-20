@@ -9,7 +9,16 @@
  * Environment variables (injected via Docker Compose / .env):
  *   DATABASE_URL – Postgres connection string
  *   BACKEND_PORT – HTTP listen port (default 4000)
+ *   N8N_URL – n8n base URL (default http://localhost:5678)
+ *   PYTHON_API_URL – Python API base URL (default http://localhost:8000)
  */
+
+import { config } from 'dotenv';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, '..', '.env') });
 
 import express from 'express';
 import cors from 'cors';
@@ -20,6 +29,12 @@ const { Pool } = pg;
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000;
+const N8N_URL = process.env.N8N_URL || 'http://localhost:5678';
+const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000';
+
+console.log(
+	`[backend] DATABASE_URL → ${process.env.DATABASE_URL?.replace(/\/\/.*@/, '//***@')}`,
+);
 
 // ── Middleware ───────────────────────────────────────────────
 app.use(cors()); // Allow cross-origin requests from the frontend
@@ -122,7 +137,7 @@ app.post('/api/messages', async (req, res) => {
  */
 app.get('/api/trigger-n8n', async (_req, res) => {
 	try {
-		const response = await fetch('http://n8n:5678/webhook/hello', {
+		const response = await fetch(`${N8N_URL}/webhook/hello`, {
 			method: 'GET',
 		});
 		const data = await response.json();
@@ -141,7 +156,7 @@ app.get('/api/trigger-n8n', async (_req, res) => {
  */
 app.get('/api/compute', async (_req, res) => {
 	try {
-		const response = await fetch('http://python-api:8000/compute');
+		const response = await fetch(`${PYTHON_API_URL}/compute`);
 		const data = await response.json();
 		res.json({ python_response: data });
 	} catch (err) {

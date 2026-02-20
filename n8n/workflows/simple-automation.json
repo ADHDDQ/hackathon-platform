@@ -48,7 +48,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Combine responses from the backend and the Python API\nconst backendData  = $('Call Backend').first().json;\nconst pythonData   = $('Call Python API').first().json;\n\nreturn [{\n  json: {\n    source: 'n8n-workflow',\n    backend: backendData,\n    python:  pythonData,\n    timestamp: new Date().toISOString()\n  }\n}];"
+        "jsCode": "// Combine responses from backend + python-api\nconst backendData = $('Call Backend').first().json;\nconst pythonData  = $('Call Python API').first().json;\n\nreturn [{\n  json: {\n    source: 'n8n-workflow',\n    backend: backendData,\n    python:  pythonData,\n    timestamp: new Date().toISOString()\n  }\n}];"
       },
       "id": "combine-results",
       "name": "Combine Results",
@@ -99,6 +99,13 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "1",
+  "versionId": "5",
   "tags": []
+},
+"active": true,
+"settings": {
+  "executionOrder": "v1"
+},
+"versionId": "4",
+"tags": []
 }
