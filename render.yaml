@@ -16,8 +16,8 @@ services:
   - type: web
     name: backend
     runtime: docker
-    dockerfilePath: ./services/backend/Dockerfile
-    dockerContext: ./services/backend
+    rootDir: ./services/backend
+    dockerfilePath: ./Dockerfile
     plan: free
     envVars:
       - key: BACKEND_PORT
@@ -39,8 +39,8 @@ services:
   - type: web
     name: python-api
     runtime: docker
-    dockerfilePath: ./services/python-api/Dockerfile
-    dockerContext: ./services/python-api
+    rootDir: ./services/python-api
+    dockerfilePath: ./Dockerfile
     plan: free
     envVars:
       - key: HF_TOKEN
@@ -88,15 +88,9 @@ services:
   - type: web
     name: frontend
     runtime: docker
-    dockerfilePath: ./services/frontend/Dockerfile
-    dockerContext: ./services/frontend
+    rootDir: ./services/frontend
+    dockerfilePath: ./Dockerfile
     plan: free
-    buildArgs:
-      - key: VITE_BACKEND_URL
-        fromService:
-          name: backend
-          type: web
-          property: host # baked into the Vite bundle at build time
     envVars:
       - key: VITE_BACKEND_URL
         fromService:
