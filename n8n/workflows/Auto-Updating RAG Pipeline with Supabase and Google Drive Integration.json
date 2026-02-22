@@ -1,0 +1,996 @@
+{
+  "name": "Auto-Updating RAG Pipeline with Supabase and Google Drive Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "list",
+          "value": "https://drive.google.com/drive/folders/1j48M24qb0WdAMy_loJWaB0hpoNTKf5VZ?fbclid=IwZXh0bgNhZW0CMTEAAR159iNCy9T6D1raZvKmyz76ABybPXniUtm-fIfAi_NfgUBluEWBpvkHHCo_aem_G1K8HPo-33F_Ro_9C-7KCA"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "08b95e0e-b3e7-4515-a69c-e39fdd173a82",
+      "name": "Monitor Insurance Docs Folder",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        424
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "1SNKEUowAR4vfkNi",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "file_name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "mime_type",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "event_type",
+              "value": "={{ $json.event }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "af423cc0-c176-4816-92b1-be81a613f87d",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        424
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.event_type }}",
+              "rightValue": "deleted",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "2e48ca25-2b01-42b1-bb2f-4f794fbdf6a2",
+      "name": "Check If File Deleted",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        424
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "insurance_documents",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "file_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.file_id }}"
+            }
+          ]
+        }
+      },
+      "id": "8b231034-1134-404b-9333-cbb3edc97fbf",
+      "name": "Delete Old Vectors",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        424
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "UlsikFcnkFuH7efj",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.file_id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "99a5197d-eab5-4043-8a66-e4342cb13b43",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        928,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mime_type }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mime_type }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "DOCX"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mime_type }}",
+                    "rightValue": "text/plain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TXT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mime_type }}",
+                    "rightValue": "text/markdown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Markdown"
+            }
+          ]
+        }
+      },
+      "id": "dd21a382-0191-42a2-a5d6-0cd5d1f49c34",
+      "name": "Route by File Type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1152,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf"
+      },
+      "id": "e88ecb52-5aad-455a-9e6b-3552029f4bba",
+      "name": "Extract from PDF",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "c8f4787b-36b3-41b5-934c-36916f41a3b3",
+      "name": "Extract from DOCX",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text"
+      },
+      "id": "b1d102e2-c9d8-4c74-ac13-37e02019f785",
+      "name": "Extract from TXT",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "text"
+      },
+      "id": "55950e40-13fe-4262-a6b1-03910d9db668",
+      "name": "Extract from Markdown",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1376,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "extracted_text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "file_id",
+              "value": "={{ $('Workflow Configuration').item.json.file_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "file_name",
+              "value": "={{ $('Workflow Configuration').item.json.file_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7d8f5c7a-118b-4e31-86f1-64c09addb3e5",
+      "name": "Merge Extracted Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Chunk text with metadata preservation\nconst items = $input.all();\nconst chunks = [];\n\n// Configuration\nconst CHUNK_SIZE = 500; // tokens (approximated as words)\nconst OVERLAP = 100; // tokens overlap\n\nfor (const item of items) {\n  const text = item.json.data || item.json.text || '';\n  const fileId = item.json.file_id || item.json.id || '';\n  const fileName = item.json.file_name || item.json.name || '';\n  \n  // Split into paragraphs to preserve structure\n  const paragraphs = text.split(/\\n\\n+/);\n  \n  let currentChunk = '';\n  let chunkIndex = 0;\n  \n  for (const paragraph of paragraphs) {\n    const words = paragraph.trim().split(/\\s+/);\n    \n    // If adding this paragraph exceeds chunk size, save current chunk\n    if (currentChunk.split(/\\s+/).length + words.length > CHUNK_SIZE && currentChunk.length > 0) {\n      chunks.push({\n        json: {\n          content: currentChunk.trim(),\n          metadata: {\n            file_id: fileId,\n            file_name: fileName,\n            chunk_index: chunkIndex\n          }\n        }\n      });\n      \n      // Start new chunk with overlap from previous chunk\n      const currentWords = currentChunk.split(/\\s+/);\n      const overlapWords = currentWords.slice(-OVERLAP);\n      currentChunk = overlapWords.join(' ') + ' ';\n      chunkIndex++;\n    }\n    \n    currentChunk += paragraph + '\\n\\n';\n  }\n  \n  // Add remaining chunk\n  if (currentChunk.trim().length > 0) {\n    chunks.push({\n      json: {\n        content: currentChunk.trim(),\n        metadata: {\n          file_id: fileId,\n          file_name: fileName,\n          chunk_index: chunkIndex\n        }\n      }\n    });\n  }\n}\n\nreturn chunks;"
+      },
+      "id": "51371075-58ed-4991-af43-4caa04898819",
+      "name": "Chunk Text with Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        424
+      ]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "chunks"
+      },
+      "id": "7eb432d5-b8e7-4775-a65e-9eb664236e9b",
+      "name": "Split Chunks into Items",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2272,
+        424
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 10
+      },
+      "id": "075067e4-a274-4b62-af2f-aff67cb7f547",
+      "name": "Process in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2496,
+        424
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inputs\": {{ $json.content }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "3db1f5ae-f00e-4141-a369-53d77c783ce6",
+      "name": "Generate Embeddings via HuggingFace",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2720,
+        352
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Jgi09bZu9E6yuhZ7",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "content",
+              "value": "={{ $('Process in Batches').item.json.content }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "embedding",
+              "value": "={{ $json.body }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "file_id",
+              "value": "={{ $('Process in Batches').item.json.metadata.file_id }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "file_name",
+              "value": "={{ $('Process in Batches').item.json.metadata.file_name }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "chunk_index",
+              "value": "={{ $('Process in Batches').item.json.metadata.chunk_index }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "42b1453e-a308-422a-b4ec-6a8fad7c7cf8",
+      "name": "Prepare Vector Insert Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2944,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "insurance_documents",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $json.content }}"
+            },
+            {
+              "fieldId": "embedding",
+              "fieldValue": "={{ $json.embedding }}"
+            },
+            {
+              "fieldId": "file_id",
+              "fieldValue": "={{ $json.file_id }}"
+            },
+            {
+              "fieldId": "file_name",
+              "fieldValue": "={{ $json.file_name }}"
+            },
+            {
+              "fieldId": "chunk_index",
+              "fieldValue": "={{ $json.chunk_index }}"
+            }
+          ]
+        }
+      },
+      "id": "1e79bf30-a984-41a4-a6be-0d884d0e2dc5",
+      "name": "Insert Embeddings to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3168,
+        424
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "UlsikFcnkFuH7efj",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:4000/api/rag/sync",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"event_type\": \"={{ $('Workflow Configuration').item.json.event_type }}\",\n  \"file_id\": \"={{ $('Workflow Configuration').item.json.file_id }}\",\n  \"file_name\": \"={{ $('Workflow Configuration').item.json.file_name }}\",\n  \"chunk_index\": \"={{ $json.chunk_index || null }}\"\n}",
+        "options": {}
+      },
+      "id": "7f9c0c5c-9d6b-4fb0-9e5f-9bfe51dcfbee",
+      "name": "Notify Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3360,
+        424
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-query",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "600aeee0-c9dc-4545-9f56-46ab41819522",
+      "name": "RAG Query Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        1104
+      ],
+      "webhookId": "ba82d291-5000-48d9-b11a-056d3a54397f"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "query",
+              "value": "={{ $json.body.query }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b7b05379-0c19-4243-992c-d1ed125b2658",
+      "name": "Extract Query Text",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        480,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"inputs\": {{ $json.query }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "f8db592f-cb1b-4ccf-8d67-b8ec2546a42c",
+      "name": "Generate Query Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        704,
+        1104
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "Jgi09bZu9E6yuhZ7",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "=knowledge_base\n",
+        "limit": 5,
+        "filterType": "string",
+        "filterString": "={{ $json.body }}"
+      },
+      "id": "44d535f7-05e9-4ccf-a4c8-e57dd09806e6",
+      "name": "Similarity Search",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        1104
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "UlsikFcnkFuH7efj",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "content"
+            },
+            {
+              "fieldToAggregate": "file_name"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "945b460d-6e5a-4ac1-bf65-f5ec78553789",
+      "name": "Combine Retrieved Chunks",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "context",
+              "value": "={{ $json.content }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "sources",
+              "value": "={{ $json.file_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "58f6fb27-f844-431a-9f10-d7249f3ece72",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1376,
+        1104
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Monitor Insurance Docs Folder": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Check If File Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If File Deleted": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Route by File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by File Type": {
+      "main": [
+        [
+          {
+            "node": "Extract from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from DOCX",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from TXT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from PDF": {
+      "main": [
+        [
+          {
+            "node": "Merge Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from DOCX": {
+      "main": [
+        [
+          {
+            "node": "Merge Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from TXT": {
+      "main": [
+        [
+          {
+            "node": "Merge Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from Markdown": {
+      "main": [
+        [
+          {
+            "node": "Merge Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Extracted Text": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Vectors": {
+      "main": [
+        [
+          {
+            "node": "Chunk Text with Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Text with Metadata": {
+      "main": [
+        [
+          {
+            "node": "Split Chunks into Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Chunks into Items": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process in Batches": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Generate Embeddings via HuggingFace",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings via HuggingFace": {
+      "main": [
+        [
+          {
+            "node": "Prepare Vector Insert Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Vector Insert Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Embeddings to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Embeddings to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Notify Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Backend": {
+      "main": [
+        [
+          {
+            "node": "Process in Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RAG Query Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Query Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Query Text": {
+      "main": [
+        [
+          {
+            "node": "Generate Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Similarity Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Similarity Search": {
+      "main": [
+        [
+          {
+            "node": "Combine Retrieved Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Retrieved Chunks": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1a94c516-9dd6-4eed-bfcf-8d2d5938917c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33f4176466ac9beddc467ef6ae63cb205a514a140148c00228d2040d908250c2"
+  },
+  "id": "HPUrj5dEjKFVUaob",
+  "tags": []
+}
