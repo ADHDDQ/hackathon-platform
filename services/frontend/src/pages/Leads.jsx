@@ -4,7 +4,7 @@ import Badge from '../components/Badge';
 import Modal from '../components/Modal';
 import EmptyState from '../components/EmptyState';
 import Loader from '../components/Loader';
-import { getBundleName, getBundleColor, BUNDLE_NAMES } from '../lib/bundles';
+import { getBundleName, BUNDLE_NAMES } from '../lib/bundles';
 import { fetchLeads, updateLead, postOverride } from '../lib/api';
 
 const STATUS_OPTIONS = ['All', 'New', 'Contacted', 'Closed Won', 'Closed Lost'];

@@ -27,6 +27,7 @@ export default function Dashboard() {
 	const [confDist, setConfDist] = useState([]);
 	const [recent, setRecent] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
 
 	useEffect(() => {
 		Promise.all([
@@ -41,10 +42,18 @@ export default function Dashboard() {
 				setConfDist(c);
 				setRecent(Array.isArray(r) ? r : []);
 			})
+			.catch((err) => setError(err.message))
 			.finally(() => setLoading(false));
 	}, []);
 
 	if (loading) return <Loader text="Loading dashboard…" />;
+	if (error)
+		return (
+			<div className="page">
+				<h2 className="page-title">Dashboard</h2>
+				<p className="error">Failed to load dashboard: {error}</p>
+			</div>
+		);
 
 	const chartBundleData = bundleDist.map((d) => ({
 		name: getBundleName(d.bundle_id),

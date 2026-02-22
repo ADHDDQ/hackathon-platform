@@ -1,6 +1,6 @@
-# Hackathon Platform — Monorepo
+# Smart Insurance Recommender
 
-A Docker-first monorepo with five interconnected services. Supports both **full Docker** mode and **local dev** mode (pnpm + Docker for infra).
+An AI-powered insurance bundle recommendation platform built for the DataQuest Hackathon. Predicts optimal insurance bundles for customers based on demographics, financial data, and risk profile.
 
 ---
 
@@ -24,17 +24,34 @@ A Docker-first monorepo with five interconnected services. Supports both **full 
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-| Service        | Tech               | Port | Purpose                              |
-| -------------- | ------------------ | ---- | ------------------------------------ |
-| **frontend**   | React + Vite       | 3000 | User-facing SPA                      |
-| **backend**    | Express (Node.js)  | 4000 | REST API, DB access, service gateway |
-| **python-api** | FastAPI + Uvicorn  | 8000 | Compute endpoints                    |
-| **n8n**        | n8n (official img) | 5678 | Workflow automation & webhooks       |
-| **postgres**   | PostgreSQL 16      | 5432 | Shared relational database           |
+| Service        | Tech                   | Port | Purpose                                        |
+| -------------- | ---------------------- | ---- | ---------------------------------------------- |
+| **frontend**   | React 18 + Vite 5      | 3000 | Dashboard, customer intake, leads, predictions |
+| **backend**    | Express 4 (ES modules) | 4000 | REST API, DB access, service gateway           |
+| **python-api** | FastAPI + Uvicorn      | 8000 | ML prediction engine & compute endpoints       |
+| **n8n**        | n8n (official img)     | 5678 | Workflow automation & webhooks                 |
+| **postgres**   | PostgreSQL 16          | 5432 | Shared relational database                     |
+
+---
+
+## Features
+
+- **Bundle Prediction** — Enter customer demographics, financial info, and risk tolerance to receive AI-ranked insurance bundle recommendations with confidence scores
+- **Lead Management** — Save predictions as leads, track status (New / Contacted / Closed Won / Closed Lost), apply manual overrides
+- **Dashboard** — Real-time stats, bundle distribution charts (Recharts), confidence histograms, recent activity feed
+- **Predictions Log** — Full audit trail with CSV export
+- **n8n Automations** — Visual workflow automation (notifications, CRM sync, reports) with webhook triggers
+- **Mock Mode** — Toggle offline demo mode from Settings — all pages work without a running backend
+- **Health Monitoring** — Service status checks for backend + Python API from the Settings page
 
 ---
 
 ## Quick Start
+
+### Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) & Docker Compose V2
+- [Node.js 20+](https://nodejs.org/) & [pnpm](https://pnpm.io/installation) (for local dev mode)
 
 ### Option A — Full Docker (everything in containers)
 
@@ -48,106 +65,37 @@ docker compose up --build
 ```bash
 cp .env.example .env
 pnpm install                  # install frontend + backend deps
-pnpm dev:infra                # starts postgres, n8n, python-api in Docker
-pnpm dev                      # starts frontend (Vite HMR) + backend (node --watch)
+pnpm dev                      # starts Docker infra + frontend (Vite HMR) + backend (node --watch)
 ```
 
-Or all at once:
-
-```bash
-pnpm dev:all                  # starts Docker infra in background, then local dev
-```
-
-Wait ~30s for health checks, then open:
+Wait ~30 s for health checks, then open:
 
 | URL                          | What                |
 | ---------------------------- | ------------------- |
-| http://localhost:3000        | Frontend (Vite dev) |
+| http://localhost:3000        | Frontend            |
 | http://localhost:4000/health | Backend health      |
 | http://localhost:8000/health | Python API health   |
-| http://localhost:5678        | n8n editor          |
+| http://localhost:5678        | n8n workflow editor |
 
-### First run — n8n
+### First run — n8n setup
 
-On first startup:
-
-1. Workflows from `n8n/workflows/` are automatically imported into the database via the n8n CLI
-2. Open http://localhost:5678 — you will see a **signup page**
-3. Create your owner account (any email/password you like)
-4. After signup, the background activation script detects the new owner and **activates all workflows automatically** — webhooks go live within seconds
-
-You can verify by clicking **"Trigger n8n Workflow"** on the frontend at http://localhost:3000.
+1. Workflows from `n8n/workflows/` are automatically imported on startup
+2. Open http://localhost:5678 and create your owner account
+3. The background activation script detects the new owner and activates all workflows — webhooks go live within seconds
 
 ---
 
 ## pnpm Scripts
 
-| Command             | What it does                                   |
-| ------------------- | ---------------------------------------------- |
-| `pnpm dev`          | Starts frontend + backend locally (parallel)   |
-| `pnpm dev:frontend` | Starts only the Vite dev server                |
-| `pnpm dev:backend`  | Starts only the Express backend with `--watch` |
-| `pnpm dev:infra`    | Docker Compose for postgres, n8n, python-api   |
-| `pnpm dev:all`      | Starts infra (background) then local dev       |
-| `pnpm docker:up`    | Full Docker mode (all 5 services)              |
-| `pnpm docker:down`  | Stop all Docker services                       |
-| `pnpm docker:nuke`  | Stop + destroy volumes                         |
-
----
-
-## How Services Connect
-
-| Caller     | Callee     | Local dev URL                         | Full Docker URL                       |
-| ---------- | ---------- | ------------------------------------- | ------------------------------------- |
-| frontend   | backend    | Vite proxy → `localhost:4000`         | `http://localhost:4000` (via browser) |
-| backend    | postgres   | `localhost:5432`                      | `postgres:5432`                       |
-| backend    | n8n        | `http://localhost:5678/webhook/hello` | `http://n8n:5678/webhook/hello`       |
-| backend    | python-api | `http://localhost:8000/compute`       | `http://python-api:8000/compute`      |
-| python-api | postgres   | `localhost:5432`                      | `postgres:5432`                       |
-| n8n        | backend    | `http://host.docker.internal:4000`    | `http://backend:4000/api/hello`       |
-| n8n        | python-api | `http://python-api:8000/compute`      | `http://python-api:8000/compute`      |
-
-> In local dev mode, the frontend uses Vite's built-in proxy (configured in `vite.config.js`) to forward `/api/*` and `/health` to the backend on port 4000. The backend reads `DATABASE_URL` from `services/backend/.env` which points to `localhost:5432`.
-
----
-
-## Environment Variables
-
-| File                    | Purpose                              |
-| ----------------------- | ------------------------------------ |
-| `.env.example`          | Template — committed to Git          |
-| `.env`                  | Runtime values for Docker Compose    |
-| `services/backend/.env` | Backend local dev (localhost DB URL) |
-
-When adding a variable:
-
-1. Add to `.env.example` with a safe default
-2. Add to `.env` with real value
-3. Reference in `docker-compose.yml` under `environment:`
-4. For local backend dev, also add to `services/backend/.env` (with `localhost` instead of Docker service name)
-5. Frontend vars must start with `VITE_` (baked at build time in Docker, live in Vite dev)
-
----
-
-## Common Commands
-
-```bash
-# -- Local dev mode --
-pnpm install                   # first time only
-pnpm dev:infra                 # start Docker infra
-pnpm dev                       # start frontend + backend locally
-
-# -- Full Docker mode --
-docker compose up --build      # all 5 services
-docker compose up --build -d   # detached
-docker compose logs -f backend # follow logs
-
-# -- Maintenance --
-docker compose build --no-cache                        # clean rebuild
-docker compose down                                    # stop
-docker compose down -v                                 # stop + nuke data
-docker compose -f docker-compose.dev.yml down          # stop dev infra
-```
+| Command             | What it does                                         |
+| ------------------- | ---------------------------------------------------- |
+| `pnpm dev`          | Docker infra + frontend + backend locally (parallel) |
+| `pnpm dev:local`    | Frontend + backend only (infra must be running)      |
+| `pnpm dev:frontend` | Vite dev server only                                 |
+| `pnpm dev:backend`  | Express backend with `--watch` only                  |
+| `pnpm docker:up`    | Full Docker mode (all 5 services)                    |
+| `pnpm docker:down`  | Stop all Docker services                             |
+| `pnpm docker:nuke`  | Stop + destroy volumes                               |
 
 ---
 
@@ -155,58 +103,78 @@ docker compose -f docker-compose.dev.yml down          # stop dev infra
 
 ```
 hackathon-platform/
-├── package.json                  # Root pnpm workspace scripts
-├── pnpm-workspace.yaml           # Defines workspace packages
-├── docker-compose.yml            # Full Docker (all 5 services)
-├── docker-compose.dev.yml        # Dev infra only (postgres, n8n, python-api)
-├── .env.example
-├── .env
-├── .gitignore
 ├── .github/
-│   └── copilot-instructions.md
-├── README.md
+│   ├── copilot-instructions.md
+│   └── workflows/
+│       ├── ci.yml                # Lint + build on every PR / push
+│       └── docker-build.yml      # Docker image builds on main
+├── docker-compose.yml            # Full Docker (all 5 services)
+├── package.json                  # Root pnpm workspace scripts
+├── pnpm-workspace.yaml
+├── .env.example
 ├── n8n/
-│   ├── entrypoint.sh             # Imports workflows via CLI, starts n8n + activation script
-│   ├── setup-workflows.mjs       # Waits for owner signup, then activates all workflows
+│   ├── entrypoint.sh
+│   ├── setup-workflows.mjs
 │   └── workflows/
 │       └── simple-automation.json
 └── services/
     ├── backend/
-    │   ├── .env                  # Local dev env (localhost DB)
     │   ├── Dockerfile
     │   ├── package.json
     │   └── src/index.js
     ├── frontend/
     │   ├── Dockerfile
     │   ├── package.json
-    │   ├── index.html
-    │   ├── vite.config.js        # Dev proxy config
+    │   ├── vite.config.js         # Dev proxy → backend :4000
     │   └── src/
-    │       ├── main.jsx
-    │       ├── App.jsx
-    │       ├── App.css
-    │       └── index.css
+    │       ├── main.jsx           # Entry point (React + BrowserRouter)
+    │       ├── App.jsx            # Route definitions
+    │       ├── App.css            # Dark-theme design system
+    │       ├── components/        # Badge, Card, EmptyState, Loader, Modal, Sidebar, StatCard, TopBar
+    │       ├── lib/
+    │       │   ├── api.js         # Centralized API client with mock-mode fallback
+    │       │   └── bundles.js     # Bundle name/color mappings (10 insurance bundles)
+    │       └── pages/
+    │           ├── Dashboard.jsx
+    │           ├── NewCustomer.jsx
+    │           ├── Leads.jsx
+    │           ├── PredictionsLog.jsx
+    │           ├── Automations.jsx
+    │           └── Settings.jsx
     └── python-api/
         ├── Dockerfile
         ├── pyproject.toml
-        └── src/
-            ├── __init__.py
-            └── main.py
+        └── src/main.py
 ```
 
 ---
 
-## Backend Endpoints
+## Frontend Pages
 
-| Method | Path               | Description                         |
-| ------ | ------------------ | ----------------------------------- |
-| GET    | `/health`          | Liveness probe                      |
-| GET    | `/api/hello`       | Read latest message from Postgres   |
-| POST   | `/api/messages`    | Create a message                    |
-| GET    | `/api/trigger-n8n` | Call n8n Simple Automation workflow |
-| GET    | `/api/compute`     | Proxy to Python API `/compute`      |
+| Route           | Page            | Description                                                |
+| --------------- | --------------- | ---------------------------------------------------------- |
+| `/`             | Dashboard       | Stats cards, bundle/confidence charts, recent activity     |
+| `/new-customer` | New Customer    | Customer intake form → prediction API → bundle ranking     |
+| `/leads`        | Leads           | Search/filter leads, change status, apply bundle overrides |
+| `/predictions`  | Predictions Log | Full prediction history table with CSV export              |
+| `/automations`  | Automations     | Trigger n8n workflows, view run history, link to editor    |
+| `/settings`     | Settings        | Mock mode toggle, service health checks, about info        |
 
-## Python API Endpoints
+---
+
+## API Endpoints
+
+### Backend (Express — port 4000)
+
+| Method | Path               | Description                    |
+| ------ | ------------------ | ------------------------------ |
+| GET    | `/health`          | Liveness probe                 |
+| GET    | `/api/hello`       | Latest message from Postgres   |
+| POST   | `/api/messages`    | Create a message               |
+| GET    | `/api/trigger-n8n` | Trigger n8n Simple Automation  |
+| GET    | `/api/compute`     | Proxy to Python API `/compute` |
+
+### Python API (FastAPI — port 8000)
 
 | Method | Path            | Description                          |
 | ------ | --------------- | ------------------------------------ |
@@ -216,34 +184,69 @@ hackathon-platform/
 
 ---
 
-## Adding a New Service
+## Environment Variables
 
-1. Create `services/my-service/` with a Dockerfile and source code
-2. Add to `docker-compose.yml` (and `docker-compose.dev.yml` if it should run in Docker during local dev)
-3. If it's a Node.js service, add to `pnpm-workspace.yaml`
-4. Update `.env.example` with any new env vars
-5. Reference from other services by Docker name or localhost
+All env vars are defined in `.env.example`. Copy to `.env` and customize.
+
+| Variable              | Service    | Description                     |
+| --------------------- | ---------- | ------------------------------- |
+| `POSTGRES_USER`       | postgres   | DB username                     |
+| `POSTGRES_PASSWORD`   | postgres   | DB password                     |
+| `POSTGRES_DB`         | postgres   | DB name                         |
+| `DATABASE_URL`        | backend    | Full Postgres connection string |
+| `PYTHON_DATABASE_URL` | python-api | Full Postgres connection string |
+| `VITE_BACKEND_URL`    | frontend   | Backend URL baked at build time |
+| `N8N_ENCRYPTION_KEY`  | n8n        | Credential encryption key       |
+
+> **Frontend vars** must start with `VITE_` and are baked at Docker build time.
 
 ---
 
-## Adding an n8n Workflow
+## Networking
 
-1. Create or export a workflow JSON in `n8n/workflows/` (include `"active": true` in the JSON)
-2. Restart: `docker compose restart n8n` (or `docker compose down -v && docker compose up --build` for a clean start)
-3. The entrypoint imports via CLI; after you sign up, the activation script activates them automatically
+| From       | To         | Docker URL                        | Local dev URL                 |
+| ---------- | ---------- | --------------------------------- | ----------------------------- |
+| frontend   | backend    | `http://localhost:4000` (browser) | Vite proxy → `localhost:4000` |
+| backend    | postgres   | `postgres:5432`                   | `localhost:5432`              |
+| backend    | n8n        | `http://n8n:5678/webhook/hello`   | `http://localhost:5678`       |
+| backend    | python-api | `http://python-api:8000`          | `http://localhost:8000`       |
+| python-api | postgres   | `postgres:5432`                   | `localhost:5432`              |
+
+---
+
+## CI/CD
+
+GitHub Actions workflows live in `.github/workflows/`:
+
+| Workflow             | Trigger             | What it does                                               |
+| -------------------- | ------------------- | ---------------------------------------------------------- |
+| **ci.yml**           | Push / PR to `main` | Install deps, lint, build frontend + backend, Python check |
+| **docker-build.yml** | Push to `main`      | Build all three Docker images, verify they start           |
 
 ---
 
 ## Troubleshooting
 
-| Problem                      | Fix                                                                                                                                                                                                                                     |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| n8n webhook returns 404      | Workflow not activated. Make sure you signed up at http://localhost:5678 first — the activation script runs after signup. Check `docker compose logs n8n`. Try `docker compose down -v && docker compose up --build` for a fresh start. |
-| Frontend shows "Error"       | Backend may not be ready — wait 30s, refresh. Check `docker compose logs backend`.                                                                                                                                                      |
-| Port conflict                | Change host ports in `.env` and update `VITE_BACKEND_URL`.                                                                                                                                                                              |
-| DB issues                    | `docker compose down -v && docker compose up --build`                                                                                                                                                                                   |
-| Backend can't reach postgres | Ensure `pnpm dev:infra` is running and `services/backend/.env` has `localhost:5432`                                                                                                                                                     |
-| pnpm install fails           | Ensure pnpm is installed: `npm i -g pnpm`                                                                                                                                                                                               |
+| Problem                 | Fix                                                               |
+| ----------------------- | ----------------------------------------------------------------- |
+| n8n webhook returns 404 | Sign up at http://localhost:5678 first — workflows activate after |
+| Frontend shows "Error"  | Wait 30 s for backend; check `docker compose logs backend`        |
+| Port conflict           | Change host ports in `.env`                                       |
+| DB issues               | `docker compose down -v && docker compose up --build`             |
+| pnpm install fails      | Ensure pnpm is installed: `npm i -g pnpm`                         |
+
+---
+
+## Tech Stack
+
+| Layer      | Technology                                |
+| ---------- | ----------------------------------------- |
+| Frontend   | React 18, Vite 5, Recharts, React Router  |
+| Backend    | Node.js 20, Express 4, pg (ES modules)    |
+| ML / API   | Python 3.12, FastAPI, SQLAlchemy, Uvicorn |
+| Automation | n8n (workflow engine)                     |
+| Database   | PostgreSQL 16                             |
+| Infra      | Docker Compose, GitHub Actions CI/CD      |
 
 ---
 

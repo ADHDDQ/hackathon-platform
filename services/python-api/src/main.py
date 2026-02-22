@@ -19,6 +19,8 @@ import math
 import datetime
 import logging
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
@@ -26,20 +28,6 @@ from sqlalchemy import create_engine, text
 # ── Logging ──────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
-
-# ── App ──────────────────────────────────────────────────────
-app = FastAPI(
-    title="Hackathon Python API",
-    version="1.0.0",
-    description="A lightweight FastAPI service for the hackathon platform.",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ── Database ─────────────────────────────────────────────────
 # Uses the Docker service name "postgres" as the host – this resolves
@@ -51,10 +39,10 @@ DATABASE_URL = os.getenv(
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 
-# ── Startup ──────────────────────────────────────────────────
-@app.on_event("startup")
-def on_startup() -> None:
-    """Create a demo table if it doesn't already exist."""
+# ── Lifespan ─────────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Create tables on startup."""
     with engine.begin() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS computations (
@@ -65,6 +53,23 @@ def on_startup() -> None:
             );
         """))
     logger.info("computations table ready")
+    yield
+
+
+# ── App ──────────────────────────────────────────────────────
+app = FastAPI(
+    title="Hackathon Python API",
+    version="1.0.0",
+    description="A lightweight FastAPI service for the hackathon platform.",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ── Routes ───────────────────────────────────────────────────

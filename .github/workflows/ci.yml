@@ -1,0 +1,87 @@
+# ──────────────────────────────────────────────────────────────
+# CI — Lint, build, and validate on every push / PR to main
+# ──────────────────────────────────────────────────────────────
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Node.js services (frontend + backend) ──────────────────
+  node:
+    name: Node.js — install, lint & build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm --filter hackathon-frontend build
+
+      - name: Verify backend entry point
+        run: node --check services/backend/src/index.js
+
+  # ── Python API ─────────────────────────────────────────────
+  python:
+    name: Python — syntax & dependency check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: services/python-api
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Syntax check
+        working-directory: services/python-api
+        run: python -m py_compile src/main.py
+
+  # ── Docker Compose validation ──────────────────────────────
+  compose:
+    name: Docker Compose — config validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Copy env template
+        run: cp .env.example .env
+
+      - name: Validate docker-compose.yml
+        run: docker compose config --quiet
