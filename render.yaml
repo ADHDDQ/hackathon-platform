@@ -1,69 +1,33 @@
 # render.yaml – Render.com Blueprint
 #
-# Mirrors docker-compose.yml for one-click deployment on Render.
-# Deploy: connect repo at https://dashboard.render.com/new/blueprint
+# Single service: builds the root Dockerfile (Docker-in-Docker) which
+# starts a Docker daemon inside the container and runs docker compose up.
 #
-# Inter-service URLs are injected automatically via `fromService`.
-# Mark every `sync: false` variable as a secret in the Render dashboard
-# before the first deploy.
+# ⚠  This requires PRIVILEGED mode. Render does not support privileged
+#    containers on shared plans. Use a Render Private Service / VM, or
+#    any VPS where you can pass --privileged to docker run.
 #
-# Postgres: this project uses an external Supabase instance.
-#           Set DATABASE_URL (and the DB_POSTGRESDB_* vars for n8n)
-#           as environment variables in the dashboard.
+# Secrets: set these in the Render dashboard before first deploy.
 
 services:
-  # ── Express Backend ──────────────────────────────────────
   - type: web
-    name: backend
+    name: hackathon-platform
     runtime: docker
-    rootDir: ./services/backend
-    dockerfilePath: ./Dockerfile
-    plan: free
+    dockerfilePath: ./Dockerfile # root Dockerfile (DinD + docker compose)
+    plan: starter # use a paid plan – free plan lacks privileges
     envVars:
-      - key: BACKEND_PORT
-        value: 4000
+      # ── Backend ─────────────────────────────────────────
       - key: DATABASE_URL
-        sync: false # Set in Render dashboard → secret
-      - key: PYTHON_API_URL
-        fromService:
-          name: python-api
-          type: web
-          property: host # resolves to https://<service>.onrender.com
-      - key: N8N_URL
-        fromService:
-          name: n8n
-          type: web
-          property: host
-
-  # ── Python API (Prediction Service) ─────────────────────
-  - type: web
-    name: python-api
-    runtime: docker
-    rootDir: ./services/python-api
-    dockerfilePath: ./Dockerfile
-    plan: free
-    envVars:
-      - key: HF_TOKEN
-        sync: false # Set in Render dashboard → secret
-
-  # ── n8n Automation ───────────────────────────────────────
-  - type: web
-    name: n8n
-    runtime: image
-    image:
-      url: docker.io/n8nio/n8n:latest
-    plan: free
-    disk:
-      name: n8n-data
-      mountPath: /home/node/.n8n
-      sizeGB: 1
-    envVars:
+        sync: false
+      - key: VITE_BACKEND_URL
+        sync: false
+      # ── n8n ─────────────────────────────────────────────
       - key: DB_TYPE
         value: postgresdb
       - key: DB_POSTGRESDB_HOST
         sync: false
       - key: DB_POSTGRESDB_PORT
-        value: 5432
+        value: '5432'
       - key: DB_POSTGRESDB_DATABASE
         sync: false
       - key: DB_POSTGRESDB_USER
@@ -72,28 +36,6 @@ services:
         sync: false
       - key: N8N_ENCRYPTION_KEY
         sync: false
-      - key: WEBHOOK_URL
-        fromService:
-          name: n8n
-          type: web
-          property: host
-      - key: N8N_SECURE_COOKIE
-        value: 'false'
-      - key: N8N_DIAGNOSTICS_ENABLED
-        value: 'false'
-      - key: N8N_PERSONALIZATION_ENABLED
-        value: 'false'
-
-  # ── React Frontend ───────────────────────────────────────
-  - type: web
-    name: frontend
-    runtime: docker
-    rootDir: ./services/frontend
-    dockerfilePath: ./Dockerfile
-    plan: free
-    envVars:
-      - key: VITE_BACKEND_URL
-        fromService:
-          name: backend
-          type: web
-          property: host
+      # ── Python API ──────────────────────────────────────
+      - key: HF_TOKEN
+        sync: false
