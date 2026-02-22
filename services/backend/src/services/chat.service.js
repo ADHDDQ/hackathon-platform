@@ -9,12 +9,17 @@ const N8N_URL = process.env.N8N_URL || 'http://localhost:5678';
 
 /**
  * Log a chat message to the database.
+ * Silently skips when Postgres is unavailable.
  */
 async function logMessage(role, message, clientId = null) {
-	await query(
-		`INSERT INTO chat_messages (client_id, message, role) VALUES ($1, $2, $3)`,
-		[clientId, message, role],
-	);
+	try {
+		await query(
+			`INSERT INTO chat_messages (client_id, message, role) VALUES ($1, $2, $3)`,
+			[clientId, message, role],
+		);
+	} catch {
+		// DB unavailable — skip logging
+	}
 }
 
 /**

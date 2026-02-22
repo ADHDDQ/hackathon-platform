@@ -21,8 +21,8 @@ async function main() {
 		await initDb();
 		console.info('[db] schema ready');
 	} catch (err) {
-		console.error('[db] initialization failed:', err.message);
-		process.exit(1);
+		console.warn('[db] initialization failed (non-fatal):', err.message);
+		console.warn('[db] backend will run without database');
 	}
 
 	const app = createApp();

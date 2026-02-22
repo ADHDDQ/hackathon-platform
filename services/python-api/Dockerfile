@@ -3,8 +3,8 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install dependencies first (layer caching)
-COPY pyproject.toml .
-RUN pip install --no-cache-dir .
+COPY pyproject.toml requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source + model artefact
 COPY src/ ./

@@ -1,13 +1,19 @@
 /**
  * Centralized API client for the Assurance Agent app.
- * All calls use relative paths so the Vite dev-server proxy works
- * and the Docker build (behind a reverse proxy) also works.
+ * In dev mode the Vite proxy forwards /api → localhost:4000.
+ * In Docker the static build uses VITE_BACKEND_URL (baked at build time).
+ * Falls back to mock data when backend services are unreachable.
  */
+
+import { MOCK_PREDICTION, MOCK_PREDICTIONS_HISTORY } from './mockData';
+
+// Base URL: empty in dev (Vite proxy handles it), full URL in Docker build
+const BASE = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/+$/, '');
 
 // ── helpers ──────────────────────────────────────────────────
 
 async function request(url, options = {}) {
-	const res = await fetch(url, {
+	const res = await fetch(`${BASE}${url}`, {
 		headers: { 'Content-Type': 'application/json', ...options.headers },
 		...options,
 	});
@@ -43,10 +49,16 @@ export async function fetchClient(clientId) {
 
 // ── Predict ──────────────────────────────────────────────────
 export async function postPredict(clientData) {
-	return request('/api/predict', {
-		method: 'POST',
-		body: JSON.stringify(clientData),
-	});
+	try {
+		return await request('/api/predict', {
+			method: 'POST',
+			body: JSON.stringify(clientData),
+		});
+	} catch {
+		// Backend unavailable — return mock prediction for demo
+		console.warn('[demo] Using mock prediction data');
+		return { ...MOCK_PREDICTION, timestamp: new Date().toISOString() };
+	}
 }
 
 // ── Chat / RAG ───────────────────────────────────────────────
@@ -72,23 +84,29 @@ export async function sendChat(message, clientContext = null) {
 					reply: data.context ?? data.reply ?? JSON.stringify(data),
 					sources: data.sources ?? [],
 				};
-			} catch (ragErr) {
-				if (ragErr.status === 404) return null;
-				throw ragErr;
+			} catch {
+				// RAG also unavailable — fall through to mock
 			}
 		}
-		throw err;
 	}
+	// All backends unavailable — return mock response for demo
+	console.warn('[demo] Using mock chat response');
+	const { getMockChatReply } = await import('./mockData');
+	return getMockChatReply(message);
 }
 
 // ── Predictions log ──────────────────────────────────────────
 export async function fetchPredictions(limit = 200) {
 	try {
-		return await request(`/api/predictions?limit=${limit}`);
-	} catch (err) {
-		if (err.status === 404) return null;
-		throw err;
+		const data = await request(`/api/predictions?limit=${limit}`);
+		if (data && Array.isArray(data) && data.length > 0) return data;
+		// Empty server response — fall through to mock
+	} catch {
+		// Backend unavailable — fall through to mock
 	}
+	// Return mock data for demo
+	console.warn('[demo] Using mock predictions history');
+	return MOCK_PREDICTIONS_HISTORY.slice(0, limit);
 }
 
 // ── Local prediction log (localStorage) ─────────────────────

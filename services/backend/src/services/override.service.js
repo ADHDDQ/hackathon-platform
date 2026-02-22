@@ -9,18 +9,33 @@ import { markOverridden } from './prediction.service.js';
  * Record an override and mark the parent prediction as overridden.
  */
 export async function createOverride({ predictionId, selectedBundle, reason }) {
-	// Mark the prediction
-	await markOverridden(predictionId);
+	try {
+		// Mark the prediction
+		await markOverridden(predictionId);
 
-	// Insert override record
-	const { rows } = await query(
-		`INSERT INTO overrides (prediction_id, selected_bundle, reason)
-		 VALUES ($1, $2, $3)
-		 RETURNING *`,
-		[predictionId, selectedBundle, reason ?? null],
-	);
+		// Insert override record
+		const { rows } = await query(
+			`INSERT INTO overrides (prediction_id, selected_bundle, reason)
+			 VALUES ($1, $2, $3)
+			 RETURNING *`,
+			[predictionId, selectedBundle, reason ?? null],
+		);
 
-	return rows[0];
+		return (
+			rows[0] ?? {
+				prediction_id: predictionId,
+				selected_bundle: selectedBundle,
+				reason,
+			}
+		);
+	} catch {
+		// DB unavailable — return a stub
+		return {
+			prediction_id: predictionId,
+			selected_bundle: selectedBundle,
+			reason,
+		};
+	}
 }
 
 /**

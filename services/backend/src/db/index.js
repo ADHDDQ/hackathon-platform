@@ -3,33 +3,73 @@
  *
  * Reads DATABASE_URL from env. Exports the pool and an initDb() that
  * creates all required tables idempotently.
+ *
+ * When Postgres is unavailable every query silently returns empty results
+ * so the rest of the backend (chat, predictions, etc.) keeps working.
  */
 
 import pg from 'pg';
 
 const { Pool } = pg;
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+let pool = null;
+let dbAvailable = false;
+
+try {
+	if (process.env.DATABASE_URL) {
+		pool = new Pool({ connectionString: process.env.DATABASE_URL });
+		// Swallow pool-level errors so they don't crash the process
+		pool.on('error', (err) => {
+			console.warn('[db] pool error (non-fatal):', err.message);
+			dbAvailable = false;
+		});
+	}
+} catch {
+	pool = null;
+}
+
+/** Stub result returned when Postgres is unreachable. */
+const EMPTY_RESULT = { rows: [], rowCount: 0 };
 
 /**
  * Run a single query against the pool (convenience wrapper).
+ * Returns an empty result set when the database is unavailable.
  */
-export function query(text, params) {
-	return pool.query(text, params);
+export async function query(text, params) {
+	if (!pool) return EMPTY_RESULT;
+	try {
+		const result = await pool.query(text, params);
+		return result;
+	} catch (err) {
+		console.warn('[db] query failed (non-fatal):', err.message);
+		return EMPTY_RESULT;
+	}
 }
 
 /**
  * Acquire a dedicated client from the pool (for transactions).
+ * Returns null when the database is unavailable.
  */
-export function getClient() {
-	return pool.connect();
+export async function getClient() {
+	if (!pool) return null;
+	try {
+		return await pool.connect();
+	} catch (err) {
+		console.warn('[db] getClient failed (non-fatal):', err.message);
+		return null;
+	}
 }
 
 /**
  * Bootstrap: create all application tables if they don't exist.
+ * Silently skips when Postgres is unavailable.
  */
 export async function initDb() {
-	const client = await pool.connect();
+	const client = await getClient();
+	if (!client) {
+		console.warn('[db] Postgres unavailable — running without database');
+		return;
+	}
 	try {
 		await client.query('BEGIN');
 
@@ -81,12 +121,14 @@ export async function initDb() {
 		`);
 
 		await client.query('COMMIT');
+		dbAvailable = true;
 	} catch (err) {
-		await client.query('ROLLBACK');
-		throw err;
+		await client.query('ROLLBACK').catch(() => {});
+		console.warn('[db] initDb failed (non-fatal):', err.message);
 	} finally {
 		client.release();
 	}
 }
 
+export { dbAvailable };
 export default pool;

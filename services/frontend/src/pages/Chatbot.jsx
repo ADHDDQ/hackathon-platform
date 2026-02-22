@@ -13,14 +13,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { useClient } from '../context/ClientContext';
 import { sendChat } from '../lib/api';
 import { getBundleName } from '../lib/bundles';
-import {
-	Send,
-	RotateCcw,
-	MessageCircle,
-	User,
-	Bot,
-	AlertTriangle,
-} from 'lucide-react';
+import { Send, RotateCcw, MessageCircle, User, Bot } from 'lucide-react';
 
 const quickPrompts = [
 	'What does comprehensive coverage include?',
@@ -35,7 +28,6 @@ export default function Chatbot() {
 	const [input, setInput] = useState('');
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState(null);
-	const [chatAvailable, setChatAvailable] = useState(true);
 	const endRef = useRef(null);
 
 	const { client, prediction } = useClient();
@@ -71,7 +63,7 @@ export default function Chatbot() {
 
 	async function handleSend(text) {
 		const trimmed = text.trim();
-		if (!trimmed || loading || !chatAvailable) return;
+		if (!trimmed || loading) return;
 		setError(null);
 		setInput('');
 		const userMessage = { id: createId(), role: 'user', content: trimmed };
@@ -80,20 +72,6 @@ export default function Chatbot() {
 		try {
 			const clientContext = buildClientContext();
 			const data = await sendChat(trimmed, clientContext);
-
-			if (data === null) {
-				setChatAvailable(false);
-				setMessages((prev) => [
-					...prev,
-					{
-						id: createId(),
-						role: 'assistant',
-						content:
-							'Chat backend is not configured. Please set up /api/chat or /api/rag/query on the backend.',
-					},
-				]);
-				return;
-			}
 
 			const reply =
 				typeof data.reply === 'string'
@@ -281,25 +259,13 @@ export default function Chatbot() {
 					</div>
 
 					{/* Warning banner */}
-					{!chatAvailable && (
-						<div className="mx-5 mb-3 flex items-center gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-xs text-warning">
-							<AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-							Chat backend not configured. Set up /api/chat or /api/rag/query to
-							enable.
-						</div>
-					)}
 
 					{/* Input area */}
 					<div className="border-t border-border px-5 py-4">
 						<Textarea
 							rows={2}
-							placeholder={
-								chatAvailable
-									? 'Ask about policies, coverage, or claims…'
-									: 'Chat is currently unavailable'
-							}
+							placeholder="Ask about policies, coverage, or claims…"
 							value={input}
-							disabled={!chatAvailable}
 							onChange={(e) => setInput(e.target.value)}
 							onKeyDown={(e) => {
 								if (e.key === 'Enter' && !e.shiftKey) {
@@ -310,7 +276,7 @@ export default function Chatbot() {
 						/>
 						<div className="mt-3 flex gap-2">
 							<Button
-								disabled={loading || !chatAvailable}
+								disabled={loading}
 								onClick={() => handleSend(input)}
 								className="gap-2"
 							>
@@ -323,7 +289,6 @@ export default function Chatbot() {
 									setInput('');
 									setMessages([]);
 									setError(null);
-									setChatAvailable(true);
 								}}
 								className="gap-2"
 							>
@@ -342,7 +307,6 @@ export default function Chatbot() {
 									key={prompt}
 									variant="secondary"
 									size="sm"
-									disabled={!chatAvailable}
 									onClick={() => handleSend(prompt)}
 									className="h-auto py-1 text-[11px]"
 								>

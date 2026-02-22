@@ -24,19 +24,21 @@ export default function Insights() {
 	async function loadData() {
 		setLoading(true);
 		try {
-			const serverData = await fetchPredictions(200);
-			if (serverData && Array.isArray(serverData) && serverData.length > 0) {
-				setPredictions(serverData);
-				setSource('server');
+			const data = await fetchPredictions(200);
+			if (data && Array.isArray(data) && data.length > 0) {
+				setPredictions(data);
+				// Check if this looks like demo data
+				const isDemo = data[0]?.id?.toString().startsWith('demo');
+				setSource(isDemo ? 'demo' : 'server');
 			} else {
 				const local = getLocalPredictions();
 				setPredictions(local);
-				setSource('local');
+				setSource(local.length > 0 ? 'local' : 'demo');
 			}
 		} catch {
 			const local = getLocalPredictions();
 			setPredictions(local);
-			setSource('local');
+			setSource(local.length > 0 ? 'local' : 'demo');
 		} finally {
 			setLoading(false);
 		}
@@ -152,8 +154,20 @@ export default function Insights() {
 
 			<p className="text-xs text-muted-foreground">
 				Data source:{' '}
-				<Badge variant={source === 'server' ? 'success' : 'warning'}>
-					{source === 'server' ? 'Server' : 'Local Storage'}
+				<Badge
+					variant={
+						source === 'server'
+							? 'success'
+							: source === 'demo'
+								? 'info'
+								: 'warning'
+					}
+				>
+					{source === 'server'
+						? 'Server'
+						: source === 'demo'
+							? 'Demo Data'
+							: 'Local Storage'}
 				</Badge>
 			</p>
 

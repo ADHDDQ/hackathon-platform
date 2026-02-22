@@ -43,26 +43,32 @@ export async function predict(clientData, clientId = null) {
 	const confidence = mlResult.prediction?.[0]?.probability ?? 0;
 	const modelVersion = mlResult.model_version ?? 'unknown';
 
-	// Log to database
-	const { rows } = await query(
-		`INSERT INTO predictions
-		   (client_id, probabilities, top_bundle, confidence, model_version, feature_snapshot)
-		 VALUES ($1, $2, $3, $4, $5, $6)
-		 RETURNING *`,
-		[
-			clientId,
-			JSON.stringify(mlResult.prediction),
-			topBundle,
-			confidence,
-			modelVersion,
-			JSON.stringify(clientData),
-		],
-	);
+	// Log to database (skip if DB unavailable)
+	let predictionId = null;
+	try {
+		const { rows } = await query(
+			`INSERT INTO predictions
+			   (client_id, probabilities, top_bundle, confidence, model_version, feature_snapshot)
+			 VALUES ($1, $2, $3, $4, $5, $6)
+			 RETURNING *`,
+			[
+				clientId,
+				JSON.stringify(mlResult.prediction),
+				topBundle,
+				confidence,
+				modelVersion,
+				JSON.stringify(clientData),
+			],
+		);
+		predictionId = rows[0]?.id ?? null;
+	} catch {
+		// DB unavailable — continue without logging
+	}
 
 	// Return the frontend-compatible envelope alongside the DB record
 	return {
 		...mlResult,
-		prediction_id: rows[0].id,
+		prediction_id: predictionId,
 	};
 }
 
