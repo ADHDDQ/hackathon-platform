@@ -71,6 +71,9 @@ jobs:
         working-directory: services/python-api
         run: python -m py_compile src/main.py
 
+      - name: Explainability tests
+        run: python -m unittest discover -s services/python-api/mlops/tests
+
   # ── Docker Compose validation ──────────────────────────────
   compose:
     name: Docker Compose — config validation

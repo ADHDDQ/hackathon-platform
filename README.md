@@ -10,16 +10,16 @@ An AI-powered insurance bundle recommendation platform built for the DataQuest H
 ┌──────────────────────────────────────────────────────────────────┐
 │                        Docker Compose                            │
 │                                                                  │
-│   ┌──────────┐     ┌──────────┐     ┌──────────────┐            │
-│   │ frontend │────▶│ backend  │────▶│  python-api  │            │
-│   │ :3000    │     │ :4000    │     │  :8000       │            │
-│   └──────────┘     └────┬─────┘     └──────┬───────┘            │
+│   ┌──────────┐     ┌──────────┐     ┌──────────────┐             │
+│   │ frontend │────▶│ backend  │────▶│  python-api  │             │
+│   │ :3000    │     │ :4000    │     │  :8000       │             │
+│   └──────────┘     └────┬─────┘     └──────┬───────┘             │
 │                         │                  │                     │
 │                         ▼                  ▼                     │
-│                    ┌──────────┐      ┌──────────┐               │
-│                    │   n8n    │──────│ postgres  │               │
+│                    ┌──────────┐      ┌──────────┐                │
+│                    │   n8n    │──────│ Supabase  │               │
 │                    │  :5678   │      │  :5432    │               │
-│                    └──────────┘      └──────────┘               │
+│                    └──────────┘      └──────────┘                │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -144,7 +144,14 @@ hackathon-platform/
     └── python-api/
         ├── Dockerfile
         ├── pyproject.toml
-        └── src/main.py
+        ├── src/main.py
+        └── mlops/
+            ├── train_pipeline.py
+            ├── test_pipeline.py
+            ├── deploy_model.py
+            ├── benchmark_explainability.py
+            └── tests/
+                └── test_explainability.py
 ```
 
 ---
@@ -239,6 +246,128 @@ cd services/python-api/mlops
 python train_pipeline.py   # Creates model_v2.joblib
 python test_pipeline.py    # Validates model_v2.joblib
 python deploy_model.py     # Deploys to ../src/model.joblib
+```
+
+---
+
+## Model Explainability
+
+The explainability toolkit lives in `services/python-api/src/explainability.py` and is designed to stay optional and modular. It supports global and local explanations, feature importance rankings, SHAP visualizations, and lightweight benchmarks.
+
+### Installation (optional dependencies)
+
+These libraries are not required for the core API, but are needed for full explainability support:
+
+```bash
+pip install shap lime interpret matplotlib
+```
+
+### Explainability APIs
+
+```python
+from explainability import (
+    get_feature_importance,
+    get_permutation_importance,
+    get_shap_values,
+    get_local_shap_values,
+    plot_shap_summary,
+    plot_feature_importance,
+    plot_dependence,
+    benchmark_explainability,
+    save_benchmark,
+)
+```
+
+### Global explanations
+
+```python
+artifact = joblib.load("services/python-api/src/model.joblib")
+model = artifact["model"]
+feature_names = artifact["feature_columns"]
+
+importance = get_feature_importance(model, feature_names, top_k=10)
+```
+
+### Local explanations (SHAP)
+
+```python
+shap_payload = get_shap_values(model, X, feature_names)
+local_payload = get_local_shap_values(model, X[:1], feature_names)
+```
+
+### Visualization examples
+
+```python
+plot_shap_summary(shap_payload, "shap_summary.png")
+plot_feature_importance(importance, "feature_importance.png")
+plot_dependence(shap_payload, "Broker_Count", "dependence_broker_count.png")
+```
+
+Generate SHAP plots with the helper script:
+
+```bash
+cd services/python-api/mlops
+python generate_shap_plots.py
+```
+
+If the production model requires unavailable dependencies (e.g., `xgboost`), the script falls back to a lightweight demo model and still generates SHAP plots.
+
+### Permutation importance
+
+```python
+perm = get_permutation_importance(model, X, y, feature_names)
+```
+
+### Performance benchmarks
+
+```bash
+cd services/python-api/mlops
+python benchmark_explainability.py
+```
+
+Outputs `explainability_benchmark.json` with timing and SHAP availability.
+
+### When to use each method
+
+- Feature importance: fast global ranking, useful for model overview and drift checks.
+- Permutation importance: more faithful than native importances but slower on large datasets.
+- SHAP global summary: best for feature impact distribution and interaction insights.
+- SHAP local explanations: best for user-facing decisions and single prediction audits.
+- Dependence plots: use to inspect feature interactions and non-linear effects.
+- LIME: fast local approximations when SHAP is too slow or unavailable.
+- Interpret (EBM): use for inherently interpretable models if training new models.
+
+### Computational requirements
+
+- Feature importance: milliseconds for tree models.
+- Permutation importance: scales with feature count and `n_repeats`.
+- SHAP: can be expensive on large datasets, recommend sampling for production use.
+- Visualization: requires matplotlib and can be slow on very large SHAP arrays.
+- LIME: per-sample cost grows with `num_samples` in the explainer.
+- Interpret: EBM training is slower than linear models but yields native explanations.
+
+### Troubleshooting
+
+- `shap` import errors: confirm Python version compatibility and reinstall with `pip install shap`.
+- Slow SHAP runs: reduce `max_samples` in `get_shap_values` or use a smaller background set.
+- Memory issues: sample input data and avoid full dataset SHAP in production.
+- Plotting errors: ensure `matplotlib` is installed and writable output paths exist.
+- LIME shape errors: ensure the explainer uses the same feature order as the model.
+- Interpret import errors: confirm `interpret` version supports Python 3.11+.
+
+### Best practices
+
+- Use SHAP on a representative sample instead of full datasets.
+- Keep a stable feature order and store it with model artifacts.
+- Log explanation runtimes to monitor latency drift.
+- Use global explainability for monitoring and local explainability for audits.
+
+### Tests
+
+Run explainability unit tests locally:
+
+```bash
+python -m unittest discover -s services/python-api/mlops/tests
 ```
 
 ---
