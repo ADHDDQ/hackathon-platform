@@ -30,7 +30,6 @@ const { Pool } = pg;
 const app = express();
 const PORT = process.env.BACKEND_PORT || 4000;
 const N8N_URL = process.env.N8N_URL || 'http://localhost:5678';
-const PYTHON_API_URL = process.env.PYTHON_API_URL || 'http://localhost:8000';
 
 console.log(
 	`[backend] DATABASE_URL → ${process.env.DATABASE_URL?.replace(/\/\/.*@/, '//***@')}`,
@@ -147,23 +146,6 @@ app.get('/api/trigger-n8n', async (_req, res) => {
 		res
 			.status(502)
 			.json({ error: 'Could not reach n8n', details: err.message });
-	}
-});
-
-/**
- * GET /api/compute
- * Proxy call to the Python FastAPI service – shows cross-service communication.
- */
-app.get('/api/compute', async (_req, res) => {
-	try {
-		const response = await fetch(`${PYTHON_API_URL}/compute`);
-		const data = await response.json();
-		res.json({ python_response: data });
-	} catch (err) {
-		console.error('[api/compute] python-api call failed:', err.message);
-		res
-			.status(502)
-			.json({ error: 'Could not reach python-api', details: err.message });
 	}
 });
 

@@ -121,14 +121,6 @@ export async function fetchHealth() {
 	return request('/health');
 }
 
-export async function fetchPythonHealth() {
-	if (isMockMode()) {
-		await delay();
-		return { status: 'ok', service: 'python-api', mock: true };
-	}
-	return request('/api/python-health');
-}
-
 // Dashboard
 export async function fetchDashboardStats() {
 	if (isMockMode()) {

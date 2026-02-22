@@ -5,21 +5,21 @@
 #
 # Service topology:
 #
-#   ┌──────────┐     ┌──────────┐     ┌──────────────┐
-#   │ frontend │────▶│ backend  │────▶│  python-api  │
-#   │ :3000    │     │ :4000    │     │  :8000       │
-#   └──────────┘     └────┬─────┘     └──────┬───────┘
-#                         │                  │
-#                         ▼                  ▼
-#                    ┌──────────┐      ┌──────────┐
-#                    │   n8n    │      │ postgres  │
+#   ┌──────────┐     ┌──────────┐
+#   │ frontend │────▶│ backend  │
+#   │ :3000    │     │ :4000    │
+#   └──────────┘     └────┬─────┘
+#                         │
+#                         ▼
+#                    ┌──────────┐      ┌───────────┐
+#                    │   n8n    │      │ supabase  │
 #                    │  :5678   │──────│  :5432    │
-#                    └──────────┘      └──────────┘
+#                    └──────────┘      └───────────┘
 
 services:
-  # ── Postgres ─────────────────────────────────────────────
+  # ── Supabase Postgres ────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: supabase/postgres:15.8.1.060
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -46,12 +46,11 @@ services:
       BACKEND_PORT: 4000
       DATABASE_URL: ${DATABASE_URL}
       N8N_URL: http://n8n:5678
-      PYTHON_API_URL: http://python-api:8000
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -67,25 +66,6 @@ services:
       - "3000:3000"
     depends_on:
       - backend
-
-  # ── Python FastAPI ───────────────────────────────────────
-  python-api:
-    build:
-      context: ./services/python-api
-    restart: unless-stopped
-    ports:
-      - "${PYTHON_API_PORT:-8000}:8000"
-    environment:
-      PYTHON_DATABASE_URL: ${PYTHON_DATABASE_URL}
-      PYTHON_API_PORT: 8000
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # ── n8n Automation ───────────────────────────────────────
   n8n:
