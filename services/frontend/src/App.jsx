@@ -1,30 +1,28 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
-import Dashboard from './pages/Dashboard';
-import NewCustomer from './pages/NewCustomer';
-import Leads from './pages/Leads';
-import PredictionsLog from './pages/PredictionsLog';
-import Automations from './pages/Automations';
-import Settings from './pages/Settings';
+import ClientWorkspace from './pages/ClientWorkspace';
+import Chatbot from './pages/Chatbot';
+import Insights from './pages/Insights';
+import { ClientProvider } from './context/ClientContext';
 
 export default function App() {
 	return (
-		<div className="app-layout">
-			<Sidebar />
-			<div className="app-main">
-				<TopBar />
-				<div className="app-content">
-					<Routes>
-						<Route path="/" element={<Dashboard />} />
-						<Route path="/new-customer" element={<NewCustomer />} />
-						<Route path="/leads" element={<Leads />} />
-						<Route path="/predictions" element={<PredictionsLog />} />
-						<Route path="/automations" element={<Automations />} />
-						<Route path="/settings" element={<Settings />} />
-					</Routes>
+		<ClientProvider>
+			<div className="flex h-screen overflow-hidden bg-background text-foreground">
+				<Sidebar />
+				<div className="flex flex-1 flex-col overflow-hidden">
+					<TopBar />
+					<main className="flex-1 overflow-y-auto px-6 py-6">
+						<Routes>
+							<Route path="/" element={<ClientWorkspace />} />
+							<Route path="/chatbot" element={<Chatbot />} />
+							<Route path="/insights" element={<Insights />} />
+							<Route path="*" element={<Navigate to="/" replace />} />
+						</Routes>
+					</main>
 				</div>
 			</div>
-		</div>
+		</ClientProvider>
 	);
 }

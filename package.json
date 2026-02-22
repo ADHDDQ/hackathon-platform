@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Hackathon monorepo – pnpm workspace + Docker",
   "scripts": {
-    "dev": "docker compose up --build -d postgres n8n python-api && pnpm run dev:local",
+    "dev": "docker compose up --build -d postgres n8n && pnpm run dev:local",
     "dev:local": "pnpm run --parallel --filter hackathon-frontend --filter hackathon-backend dev",
     "dev:frontend": "pnpm --filter hackathon-frontend dev",
     "dev:backend": "pnpm --filter hackathon-backend dev",
