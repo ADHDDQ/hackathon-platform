@@ -24,6 +24,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import pg from 'pg';
+import { createRagEventBus, registerRagRoutes } from './rag.js';
 
 const { Pool } = pg;
 
@@ -39,6 +40,9 @@ console.log(
 app.use(cors()); // Allow cross-origin requests from the frontend
 app.use(express.json()); // Parse JSON request bodies
 app.use(morgan('combined')); // HTTP request logging
+
+const ragEventBus = createRagEventBus();
+registerRagRoutes(app, { n8nUrl: N8N_URL, eventBus: ragEventBus });
 
 // ── Postgres connection pool ────────────────────────────────
 // The DATABASE_URL uses the Docker service name "postgres" as host, which

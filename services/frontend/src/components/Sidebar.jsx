@@ -6,6 +6,7 @@ const links = [
 	{ to: '/leads', label: 'Leads', icon: '📋' },
 	{ to: '/predictions', label: 'Predictions Log', icon: '🔮' },
 	{ to: '/automations', label: 'Automations', icon: '⚡' },
+	{ to: '/chatbot', label: 'Chatbot', icon: '💬' },
 	{ to: '/settings', label: 'Settings', icon: '⚙️' },
 ];
 

@@ -349,3 +349,17 @@ export async function fetchAutomationRuns() {
 		return [];
 	}
 }
+
+export async function ragQuery(query) {
+	if (isMockMode()) {
+		await delay(500);
+		return {
+			context: 'Mock context response for RAG query.',
+			sources: ['mock-document.txt'],
+		};
+	}
+	return request('/api/rag/query', {
+		method: 'POST',
+		body: JSON.stringify({ query }),
+	});
+}

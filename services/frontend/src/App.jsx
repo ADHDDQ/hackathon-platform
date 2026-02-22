@@ -7,6 +7,7 @@ import Leads from './pages/Leads';
 import PredictionsLog from './pages/PredictionsLog';
 import Automations from './pages/Automations';
 import Settings from './pages/Settings';
+import Chatbot from './pages/Chatbot';
 
 export default function App() {
 	return (
@@ -21,6 +22,7 @@ export default function App() {
 						<Route path="/leads" element={<Leads />} />
 						<Route path="/predictions" element={<PredictionsLog />} />
 						<Route path="/automations" element={<Automations />} />
+						<Route path="/chatbot" element={<Chatbot />} />
 						<Route path="/settings" element={<Settings />} />
 					</Routes>
 				</div>
