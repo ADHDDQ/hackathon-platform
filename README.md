@@ -214,7 +214,7 @@ All env vars are defined in `.env.example`. Copy to `.env` and customize.
 
 ---
 
-## CI/CD
+## CI/CD & MLOps
 
 GitHub Actions workflows live in `.github/workflows/`:
 
@@ -222,6 +222,24 @@ GitHub Actions workflows live in `.github/workflows/`:
 | -------------------- | ------------------- | ---------------------------------------------------------- |
 | **ci.yml**           | Push / PR to `main` | Install deps, lint, build frontend + backend, Python check |
 | **docker-build.yml** | Push to `main`      | Build all three Docker images, verify they start           |
+| **mlops.yml**        | Push to `main`      | Trains, validates, and deploys the ML model artifact       |
+
+### MLOps Pipeline
+
+The project includes a lightweight MLOps pipeline located in `services/python-api/mlops/`. It automates the model lifecycle without interfering with the main application structure.
+
+1.  **Training (`train_pipeline.py`)**: Generates synthetic data, trains a RandomForest model, and saves it as `model_v2.joblib`.
+2.  **Validation (`test_pipeline.py`)**: Loads the new model, checks for required metadata, and verifies inference on mock data.
+3.  **Deployment (`deploy_model.py`)**: Backs up the existing production model (`src/model.joblib`) and replaces it with the validated `model_v2.joblib`.
+
+To run locally:
+
+```bash
+cd services/python-api/mlops
+python train_pipeline.py   # Creates model_v2.joblib
+python test_pipeline.py    # Validates model_v2.joblib
+python deploy_model.py     # Deploys to ../src/model.joblib
+```
 
 ---
 

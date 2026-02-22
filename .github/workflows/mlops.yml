@@ -1,0 +1,57 @@
+
+name: Simplest MLOps Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  train-and-validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy scikit-learn joblib xgboost
+
+    - name: Train Model (Automated Training)
+      run: |
+        cd services/python-api/mlops
+        python train_pipeline.py
+
+    - name: Validate Model (Automated Testing)
+      run: |
+        cd services/python-api/mlops
+        python test_pipeline.py
+
+    - name: Deploy Model (Continuous Deployment)
+      if: success()
+      run: |
+        cd services/python-api/mlops
+        python deploy_model.py
+
+    - name: Upload Model Artifact (Versioning)
+      uses: actions/upload-artifact@v3
+      with:
+        name: model-artifact
+        path: |
+          services/python-api/src/model.joblib
+          services/python-api/mlops/model_registry.json
+
+    - name: Build Docker Image (Deployment Artifact)
+      run: |
+        docker build -t hackathon-python-api:latest services/python-api
+
+    - name: Print Model Registry
+      run: |
+        cat services/python-api/src/model_registry.json
